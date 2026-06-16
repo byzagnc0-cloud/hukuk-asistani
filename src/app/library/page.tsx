@@ -218,7 +218,7 @@ export default function LibraryPage() {
           <div className="card text-center py-16">
             <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h3 className="font-semibold text-gray-500">Kayıt bulunamadı</h3>
-            <p className="text-sm text-gray-400 mt-1">PDF, Word, Excel dosyaları veya metin notları ekleyin</p>
+            <p className="text-sm text-gray-400 mt-1">PDF, Word, Excel, UDF dosyaları veya metin notları ekleyin</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-3">
@@ -289,7 +289,7 @@ export default function LibraryPage() {
           </div>
           {savedEntityId && (
             <div>
-              <label className="label">Dosya Ekleri (PDF, Word, Excel)</label>
+              <label className="label">Dosya Ekleri (PDF, Word, Excel, UDF)</label>
               <FileUpload entityType="library_item" entityId={savedEntityId} userId={user!.id} />
             </div>
           )}

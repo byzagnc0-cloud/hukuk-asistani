@@ -103,7 +103,7 @@ export default function FileUpload({ entityType, entityId, userId, existingFiles
         <div className="space-y-2">
           {files.map(file => (
             <div key={file.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <span className="text-lg">{getFileIcon(file.mime_type)}</span>
+              <span className="text-lg">{getFileIcon(file.mime_type, file.file_name)}</span>
               <div className="flex-1 min-w-0">
                 <button
                   onClick={() => downloadFile(file.file_path, file.file_name)}
@@ -136,7 +136,7 @@ export default function FileUpload({ entityType, entityId, userId, existingFiles
           <Upload className="w-5 h-5 text-gray-400" />
         )}
         <span className="text-sm text-gray-500">
-          {uploading ? 'Yükleniyor...' : 'Dosya ekle (PDF, Word, Excel)'}
+          {uploading ? 'Yükleniyor...' : 'Dosya ekle (PDF, Word, Excel, UDF)'}
         </span>
         <input
           ref={inputRef}

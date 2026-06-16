@@ -39,7 +39,8 @@ export function formatFileSize(bytes: number | undefined | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function getFileIcon(mimeType: string | undefined | null): string {
+export function getFileIcon(mimeType: string | undefined | null, fileName?: string | null): string {
+  if (fileName?.toLowerCase().endsWith('.udf')) return '⚖️'
   if (!mimeType) return '📄'
   if (mimeType.includes('pdf')) return '📕'
   if (mimeType.includes('word') || mimeType.includes('document')) return '📘'
@@ -52,7 +53,7 @@ export function classNames(...classes: (string | undefined | null | false)[]): s
   return classes.filter(Boolean).join(' ')
 }
 
-export const ACCEPTED_FILE_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png'
+export const ACCEPTED_FILE_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.udf,.txt,.jpg,.jpeg,.png'
 
 export const PRIORITY_COLORS = {
   low: 'bg-gray-100 text-gray-700',
