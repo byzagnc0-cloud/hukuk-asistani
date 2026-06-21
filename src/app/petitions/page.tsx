@@ -70,12 +70,12 @@ export default function PetitionsPage() {
     setEditingId(item.id)
     setForm({
       title: item.title,
-      category: item.category,
+      category: item.category ?? 'Diğer',
       description: item.description ?? '',
       content: item.content ?? '',
       tags: item.tags.join(', '),
     })
-    setUseCustomCategory(!PETITION_CATEGORIES.includes(item.category))
+    setUseCustomCategory(!PETITION_CATEGORIES.includes(item.category ?? 'Diğer'))
     setSavedEntityId(item.id)
     setModalOpen(true)
   }
@@ -118,7 +118,7 @@ export default function PetitionsPage() {
   const filtered = items.filter(item => {
     const matchSearch = !search ||
       item.title.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase()) ||
+      item.category?.toLowerCase().includes(search.toLowerCase()) ||
       item.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
     const matchCat = !categoryFilter || item.category === categoryFilter
     return matchSearch && matchCat
@@ -134,7 +134,7 @@ export default function PetitionsPage() {
   }, {} as Record<string, PetitionTemplate[]>)
 
   // Also include non-standard categories
-  const nonStandardCats = Array.from(new Set(filtered.filter(i => !PETITION_CATEGORIES.includes(i.category)).map(i => i.category)))
+  const nonStandardCats = Array.from(new Set(filtered.filter(i => !PETITION_CATEGORIES.includes(i.category ?? 'Diğer')).map(i => i.category ?? 'Diğer')))
   nonStandardCats.forEach(cat => {
     groupedByCategory[cat] = filtered.filter(i => i.category === cat)
   })
