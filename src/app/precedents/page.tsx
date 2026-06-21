@@ -124,7 +124,7 @@ export default function PrecedentsPage() {
     fetchItems()
   }
 
-  const courts = [...new Set(items.map(i => i.court).filter(Boolean))] as string[]
+  const courts = Array.from(new Set(items.map(i => i.court).filter(Boolean))) as string[]
 
   const filtered = items.filter(item => {
     const matchSearch = !search ||

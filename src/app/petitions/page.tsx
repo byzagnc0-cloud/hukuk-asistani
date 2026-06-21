@@ -134,7 +134,7 @@ export default function PetitionsPage() {
   }, {} as Record<string, PetitionTemplate[]>)
 
   // Also include non-standard categories
-  const nonStandardCats = [...new Set(filtered.filter(i => !PETITION_CATEGORIES.includes(i.category)).map(i => i.category))]
+  const nonStandardCats = Array.from(new Set(filtered.filter(i => !PETITION_CATEGORIES.includes(i.category)).map(i => i.category)))
   nonStandardCats.forEach(cat => {
     groupedByCategory[cat] = filtered.filter(i => i.category === cat)
   })
