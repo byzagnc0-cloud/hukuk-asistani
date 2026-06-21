@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function AuthPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -34,7 +34,7 @@ export default function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         router.push('/')
-      } else {
+      } else if (mode === 'register') {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -44,6 +44,12 @@ export default function AuthPage() {
         })
         if (error) throw error
         setSuccess('Kayıt başarılı! E-posta adresinizi doğrulayın veya direkt giriş yapın.')
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        })
+        if (error) throw error
+        setSuccess('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.')
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Bir hata oluştu'
@@ -84,12 +90,14 @@ export default function AuthPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-1">
-            {mode === 'login' ? 'Giriş Yapın' : 'Hesap Oluşturun'}
+            {mode === 'login' ? 'Giriş Yapın' : mode === 'register' ? 'Hesap Oluşturun' : 'Şifrenizi Sıfırlayın'}
           </h2>
           <p className="text-sm text-gray-500 mb-6">
             {mode === 'login'
               ? 'Hesabınıza giriş yaparak devam edin'
-              : 'Yeni bir hesap oluşturun'}
+              : mode === 'register'
+              ? 'Yeni bir hesap oluşturun'
+              : 'E-posta adresinize bir sıfırlama bağlantısı gönderelim'}
           </p>
 
           {error && (
@@ -120,28 +128,42 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <div>
-              <label className="label">Şifre</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="En az 6 karakter"
-                  className="input-field pl-10 pr-10"
-                />
+            {mode !== 'forgot' && (
+              <div>
+                <label className="label">Şifre</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="En az 6 karakter"
+                    className="input-field pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'login' && (
+              <div className="text-right">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => { setMode('forgot'); setError(null); setSuccess(null) }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  Şifremi unuttum
                 </button>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"
@@ -150,19 +172,28 @@ export default function AuthPage() {
             >
               {submitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> İşleniyor...</>
-              ) : mode === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}
+              ) : mode === 'login' ? 'Giriş Yap' : mode === 'register' ? 'Kayıt Ol' : 'Sıfırlama Bağlantısı Gönder'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <button
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null) }}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {mode === 'login'
-                ? 'Hesabınız yok mu? Kayıt olun'
-                : 'Zaten hesabınız var mı? Giriş yapın'}
-            </button>
+            {mode === 'forgot' ? (
+              <button
+                onClick={() => { setMode('login'); setError(null); setSuccess(null) }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Giriş ekranına dön
+              </button>
+            ) : (
+              <button
+                onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null) }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {mode === 'login'
+                  ? 'Hesabınız yok mu? Kayıt olun'
+                  : 'Zaten hesabınız var mı? Giriş yapın'}
+              </button>
+            )}
           </div>
         </div>
 
