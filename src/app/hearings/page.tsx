@@ -108,7 +108,7 @@ export default function HearingsPage() {
     const value = noteDrafts[h.id]
     if (value === undefined || value === (h.note ?? '')) return
     await supabase.from('hearings').update({ note: value || null }).eq('id', h.id)
-    setHearings(prev => prev.map(x => x.id === h.id ? { ...x, note: value || null } : x))
+    fetchAll()
   }
 
   function openAdd() {
