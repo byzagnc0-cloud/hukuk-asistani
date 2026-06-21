@@ -10,7 +10,7 @@ import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import FileUpload from '@/components/ui/FileUpload'
 import ToastContainer, { useToast } from '@/components/ui/Toast'
-import { Task, TaskStatus, TaskPriority, TaskChannel, PRIORITY_LABELS, STATUS_LABELS, CHANNEL_LABELS } from '@/lib/types'
+import { Task, TaskStatus, TaskPriority, TaskChannel, Case, PRIORITY_LABELS, STATUS_LABELS, CHANNEL_LABELS } from '@/lib/types'
 import { formatDate, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/utils'
 
 const emptyForm = {
@@ -18,6 +18,7 @@ const emptyForm = {
   description: '',
   client_name: '',
   file_info: '',
+  case_id: '',
   due_date: '',
   channel: '' as TaskChannel | '',
   priority: 'medium' as TaskPriority,
@@ -30,6 +31,7 @@ export default function TasksPage() {
   const { toasts, addToast, removeToast } = useToast()
 
   const [tasks, setTasks] = useState<Task[]>([])
+  const [cases, setCases] = useState<Case[]>([])
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all')
@@ -51,12 +53,12 @@ export default function TasksPage() {
 
   async function fetchTasks() {
     setFetching(true)
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('due_date', { ascending: true, nullsFirst: false })
+    const [{ data }, { data: cs }] = await Promise.all([
+      supabase.from('tasks').select('*').eq('user_id', user!.id).order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('cases').select('*').eq('user_id', user!.id).order('title'),
+    ])
     setTasks(data ?? [])
+    setCases(cs ?? [])
     setFetching(false)
   }
 
@@ -74,6 +76,7 @@ export default function TasksPage() {
       description: task.description ?? '',
       client_name: task.client_name ?? '',
       file_info: task.file_info ?? '',
+      case_id: task.case_id ?? '',
       due_date: task.due_date ?? '',
       channel: (task.channel ?? '') as TaskChannel | '',
       priority: task.priority,
@@ -93,6 +96,7 @@ export default function TasksPage() {
       description: form.description || null,
       client_name: form.client_name || null,
       file_info: form.file_info || null,
+      case_id: form.case_id || null,
       due_date: form.due_date || null,
       channel: form.channel || null,
       priority: form.priority,
@@ -248,6 +252,9 @@ export default function TasksPage() {
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
                       {task.client_name && <span>👤 {task.client_name}</span>}
                       {task.file_info && <span>📁 {task.file_info}</span>}
+                      {task.case_id && (
+                        <span>⚖️ {cases.find(c => c.id === task.case_id)?.title ?? 'Bağlı dosya'}</span>
+                      )}
                       {task.due_date && (
                         <span className={`font-medium ${
                           !task.due_date ? '' :
@@ -335,6 +342,18 @@ export default function TasksPage() {
                 className="input-field"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="label">Bağlı Dava/Dosya</label>
+            <select
+              value={form.case_id}
+              onChange={e => setForm(f => ({ ...f, case_id: e.target.value }))}
+              className="input-field"
+            >
+              <option value="">Bağlı dosya yok</option>
+              {cases.map(c => <option key={c.id} value={c.id}>{c.title}{c.client_name ? ` — ${c.client_name}` : ''}</option>)}
+            </select>
           </div>
 
           <div className="form-row">

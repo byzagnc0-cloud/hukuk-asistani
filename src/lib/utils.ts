@@ -1,4 +1,4 @@
-import { format, isToday, parseISO } from 'date-fns'
+import { format, isToday, isTomorrow, isBefore, parseISO, startOfDay, addDays } from 'date-fns'
 import { tr } from 'date-fns/locale'
 
 export function formatDate(dateStr: string | undefined | null): string {
@@ -30,6 +30,41 @@ export function isDateToday(dateStr: string | undefined | null): boolean {
   } catch {
     return false
   }
+}
+
+export function isDateTomorrow(dateStr: string | undefined | null): boolean {
+  if (!dateStr) return false
+  try {
+    return isTomorrow(parseISO(dateStr))
+  } catch {
+    return false
+  }
+}
+
+export function isDateOverdue(dateStr: string | undefined | null): boolean {
+  if (!dateStr) return false
+  try {
+    return isBefore(parseISO(dateStr), startOfDay(new Date()))
+  } catch {
+    return false
+  }
+}
+
+export function isDateThisWeek(dateStr: string | undefined | null): boolean {
+  if (!dateStr) return false
+  try {
+    const date = startOfDay(parseISO(dateStr))
+    const today = startOfDay(new Date())
+    const weekEnd = addDays(today, 7)
+    return !isBefore(date, today) && isBefore(date, weekEnd)
+  } catch {
+    return false
+  }
+}
+
+export function formatCurrency(amount: number | undefined | null): string {
+  if (amount === undefined || amount === null || isNaN(amount)) return '-'
+  return amount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'
 }
 
 export function formatFileSize(bytes: number | undefined | null): string {

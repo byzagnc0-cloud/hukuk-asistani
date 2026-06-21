@@ -36,6 +36,7 @@ export default function PetitionsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [savedEntityId, setSavedEntityId] = useState<string | null>(null)
   const [detailItem, setDetailItem] = useState<PetitionTemplate | null>(null)
+  const [useCustomCategory, setUseCustomCategory] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth')
@@ -60,6 +61,7 @@ export default function PetitionsPage() {
   function openAdd(category?: string) {
     setEditingId(null)
     setForm({ ...emptyForm, category: category ?? '' })
+    setUseCustomCategory(false)
     setSavedEntityId(null)
     setModalOpen(true)
   }
@@ -73,20 +75,20 @@ export default function PetitionsPage() {
       content: item.content ?? '',
       tags: item.tags.join(', '),
     })
+    setUseCustomCategory(!PETITION_CATEGORIES.includes(item.category))
     setSavedEntityId(item.id)
     setModalOpen(true)
   }
 
   async function handleSave() {
     if (!form.title.trim()) return addToast('Başlık zorunludur', 'error')
-    if (!form.category) return addToast('Kategori seçiniz', 'error')
     setSaving(true)
 
     const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean)
     const payload = {
       user_id: user!.id,
       title: form.title,
-      category: form.category,
+      category: form.category || 'Diğer',
       description: form.description || null,
       content: form.content || null,
       tags,
@@ -241,11 +243,34 @@ export default function PetitionsPage() {
               <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Dilekçe başlığı..." className="input-field" />
             </div>
             <div>
-              <label className="label">Kategori *</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="input-field">
-                <option value="">Kategori seçin...</option>
-                {PETITION_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <label className="label">Kategori</label>
+              {useCustomCategory ? (
+                <input
+                  type="text"
+                  value={form.category}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                  placeholder="Özel kategori adı..."
+                  className="input-field"
+                />
+              ) : (
+                <select
+                  value={form.category}
+                  onChange={e => {
+                    if (e.target.value === '__custom__') { setUseCustomCategory(true); setForm(f => ({ ...f, category: '' })) }
+                    else setForm(f => ({ ...f, category: e.target.value }))
+                  }}
+                  className="input-field"
+                >
+                  <option value="">Kategorisiz (Diğer)</option>
+                  {PETITION_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="__custom__">+ Özel kategori ekle...</option>
+                </select>
+              )}
+              {useCustomCategory && (
+                <button type="button" onClick={() => { setUseCustomCategory(false); setForm(f => ({ ...f, category: '' })) }} className="text-xs text-blue-500 hover:text-blue-700 mt-1">
+                  Listeden seç
+                </button>
+              )}
             </div>
           </div>
           <div>

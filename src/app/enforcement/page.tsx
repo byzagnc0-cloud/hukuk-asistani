@@ -25,6 +25,7 @@ const emptyForm = {
   status: 'active',
   enforcement_type: '' as EnforcementType | '',
   query_done: false,
+  wanted_persons: '',
   notes: '',
 }
 
@@ -96,6 +97,7 @@ export default function EnforcementPage() {
       status: item.status,
       enforcement_type: (item.enforcement_type ?? '') as EnforcementType | '',
       query_done: item.query_done,
+      wanted_persons: item.wanted_persons ?? '',
       notes: item.notes ?? '',
     })
     setSavedEntityId(item.id)
@@ -119,6 +121,7 @@ export default function EnforcementPage() {
       status: form.status,
       enforcement_type: form.enforcement_type || null,
       query_done: form.query_done,
+      wanted_persons: form.wanted_persons || null,
       notes: form.notes || null,
     }
 
@@ -162,6 +165,16 @@ export default function EnforcementPage() {
 
   async function updateQueryNote(queryId: string, note: string) {
     await supabase.from('enforcement_queries').update({ result_note: note }).eq('id', queryId)
+    fetchAll()
+  }
+
+  async function updateQueryFound(query: EnforcementQuery, value: string) {
+    const found = value === '' ? null : value === 'true'
+    await supabase.from('enforcement_queries').update({
+      found,
+      is_done: true,
+      done_date: query.done_date ?? new Date().toISOString().split('T')[0],
+    }).eq('id', query.id)
     fetchAll()
   }
 
@@ -265,6 +278,7 @@ export default function EnforcementPage() {
                         )}
                       </div>
                       {item.notes && <p className="text-sm text-gray-500 mt-1">{item.notes}</p>}
+                      {item.wanted_persons && <p className="text-xs text-red-500 mt-1">🔍 Aranan: {item.wanted_persons}</p>}
                       {itemQueries.length > 0 && (
                         <div className="flex items-center gap-1 mt-2">
                           <span className="text-xs text-gray-400">{itemQueries.filter(q => q.is_done).length}/{itemQueries.length} sorgu tamamlandı</span>
@@ -323,9 +337,24 @@ export default function EnforcementPage() {
                                     : <Circle className="w-5 h-5 text-gray-300" />}
                                 </button>
                                 <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium ${q.is_done ? 'text-green-700' : 'text-gray-700'}`}>
-                                    {QUERY_TYPE_LABELS[q.query_type]}
-                                  </p>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className={`text-sm font-medium ${q.is_done ? 'text-green-700' : 'text-gray-700'}`}>
+                                      {QUERY_TYPE_LABELS[q.query_type]}
+                                    </p>
+                                    <select
+                                      value={q.found === null || q.found === undefined ? '' : String(q.found)}
+                                      onChange={e => updateQueryFound(q, e.target.value)}
+                                      className={`text-xs rounded-lg px-1.5 py-1 border focus:outline-none focus:ring-1 focus:ring-blue-400 flex-shrink-0 ${
+                                        q.found === true ? 'bg-green-50 border-green-200 text-green-700' :
+                                        q.found === false ? 'bg-red-50 border-red-200 text-red-700' :
+                                        'bg-white border-gray-200 text-gray-500'
+                                      }`}
+                                    >
+                                      <option value="">Sonuç?</option>
+                                      <option value="true">Var</option>
+                                      <option value="false">Yok</option>
+                                    </select>
+                                  </div>
                                   {q.done_date && <p className="text-xs text-gray-400">{formatDate(q.done_date)}</p>}
                                   <input
                                     type="text"
@@ -418,6 +447,12 @@ export default function EnforcementPage() {
             <input type="checkbox" id="query_done" checked={form.query_done} onChange={e => setForm(f => ({ ...f, query_done: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
             <label htmlFor="query_done" className="text-sm font-medium text-gray-700">Sorgu yapıldı mı?</label>
           </div>
+          {form.query_done && (
+            <div>
+              <label className="label">Aranan Kişiler</label>
+              <textarea value={form.wanted_persons} onChange={e => setForm(f => ({ ...f, wanted_persons: e.target.value }))} rows={2} placeholder="Aranan kişi adları..." className="input-field resize-none" />
+            </div>
+          )}
           <div>
             <label className="label">Notlar</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} className="input-field resize-none" />

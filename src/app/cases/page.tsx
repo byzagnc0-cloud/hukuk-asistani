@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Trash2, Edit2, Loader2, FolderOpen, ChevronDown, ChevronUp, CalendarPlus } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Loader2, FolderOpen, ChevronDown, ChevronUp, CalendarPlus, StickyNote, CheckCircle2, Circle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import AppLayout from '@/components/layout/AppLayout'
 import Modal from '@/components/ui/Modal'
 import FileUpload from '@/components/ui/FileUpload'
 import ToastContainer, { useToast } from '@/components/ui/Toast'
-import { Case, CaseDate } from '@/lib/types'
+import { Case, CaseDate, CaseNote, Task, CASE_TYPE_OPTIONS } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 
 const emptyForm = {
@@ -27,6 +27,11 @@ const emptyDateForm = {
   note: '',
 }
 
+const emptyNoteForm = {
+  note: '',
+  note_date: '',
+}
+
 export default function CasesPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -34,6 +39,8 @@ export default function CasesPage() {
 
   const [cases, setCases] = useState<Case[]>([])
   const [caseDates, setCaseDates] = useState<Record<string, CaseDate[]>>({})
+  const [caseNotes, setCaseNotes] = useState<Record<string, CaseNote[]>>({})
+  const [caseTasks, setCaseTasks] = useState<Record<string, Task[]>>({})
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -50,6 +57,11 @@ export default function CasesPage() {
   const [dateForm, setDateForm] = useState(emptyDateForm)
   const [dateEditingId, setDateEditingId] = useState<string | null>(null)
 
+  const [noteModalOpen, setNoteModalOpen] = useState(false)
+  const [noteModalCaseId, setNoteModalCaseId] = useState<string | null>(null)
+  const [noteForm, setNoteForm] = useState(emptyNoteForm)
+  const [noteEditingId, setNoteEditingId] = useState<string | null>(null)
+
   useEffect(() => {
     if (!loading && !user) router.push('/auth')
   }, [user, loading, router])
@@ -60,18 +72,13 @@ export default function CasesPage() {
 
   async function fetchCases() {
     setFetching(true)
-    const { data } = await supabase
-      .from('cases')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false })
+    const [{ data }, { data: dates }, { data: notes }, { data: tasks }] = await Promise.all([
+      supabase.from('cases').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }),
+      supabase.from('case_dates').select('*').eq('user_id', user!.id).order('event_date', { ascending: true }),
+      supabase.from('case_notes').select('*').eq('user_id', user!.id).order('note_date', { ascending: true }),
+      supabase.from('tasks').select('*').eq('user_id', user!.id).not('case_id', 'is', null),
+    ])
     setCases(data ?? [])
-
-    const { data: dates } = await supabase
-      .from('case_dates')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('event_date', { ascending: true })
 
     const dateMap: Record<string, CaseDate[]> = {}
     dates?.forEach(d => {
@@ -79,6 +86,22 @@ export default function CasesPage() {
       dateMap[d.case_id].push(d)
     })
     setCaseDates(dateMap)
+
+    const noteMap: Record<string, CaseNote[]> = {}
+    notes?.forEach(n => {
+      if (!noteMap[n.case_id]) noteMap[n.case_id] = []
+      noteMap[n.case_id].push(n)
+    })
+    setCaseNotes(noteMap)
+
+    const taskMap: Record<string, Task[]> = {}
+    tasks?.forEach(t => {
+      if (!t.case_id) return
+      if (!taskMap[t.case_id]) taskMap[t.case_id] = []
+      taskMap[t.case_id].push(t)
+    })
+    setCaseTasks(taskMap)
+
     setFetching(false)
   }
 
@@ -172,11 +195,54 @@ export default function CasesPage() {
     fetchCases()
   }
 
+  function openNoteModal(caseId: string, note?: CaseNote) {
+    setNoteModalCaseId(caseId)
+    setNoteEditingId(note?.id ?? null)
+    setNoteForm(note ? { note: note.note, note_date: note.note_date ?? '' } : emptyNoteForm)
+    setNoteModalOpen(true)
+  }
+
+  async function handleSaveNote() {
+    if (!noteForm.note.trim()) return addToast('Not metni zorunludur', 'error')
+
+    const payload = {
+      case_id: noteModalCaseId,
+      user_id: user!.id,
+      note: noteForm.note,
+      note_date: noteForm.note_date || null,
+    }
+
+    if (noteEditingId) {
+      await supabase.from('case_notes').update(payload).eq('id', noteEditingId)
+    } else {
+      await supabase.from('case_notes').insert(payload)
+    }
+    addToast('Not kaydedildi', 'success')
+    setNoteModalOpen(false)
+    fetchCases()
+  }
+
+  async function deleteNote(id: string) {
+    await supabase.from('case_notes').delete().eq('id', id)
+    addToast('Not silindi', 'success')
+    fetchCases()
+  }
+
+  async function toggleTaskStatus(task: Task) {
+    const completed = task.status !== 'completed'
+    await supabase.from('tasks').update({
+      status: completed ? 'completed' : 'pending',
+      completed_at: completed ? new Date().toISOString() : null,
+    }).eq('id', task.id)
+    fetchCases()
+  }
+
   const filtered = cases.filter(c =>
     !search ||
     c.title.toLowerCase().includes(search.toLowerCase()) ||
     c.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.case_number?.toLowerCase().includes(search.toLowerCase())
+    c.case_number?.toLowerCase().includes(search.toLowerCase()) ||
+    c.court?.toLowerCase().includes(search.toLowerCase())
   )
 
   if (loading || fetching) {
@@ -204,7 +270,7 @@ export default function CasesPage() {
 
         <div className="relative mb-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Dava, müvekkil veya esas no ara..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" />
+          <input type="text" placeholder="Dava, müvekkil, mahkeme veya esas no ara..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" />
         </div>
 
         {filtered.length === 0 ? (
@@ -217,6 +283,8 @@ export default function CasesPage() {
             {filtered.map(c => {
               const isExpanded = expandedId === c.id
               const dates = caseDates[c.id] ?? []
+              const notes = caseNotes[c.id] ?? []
+              const linkedTasks = caseTasks[c.id] ?? []
               return (
                 <div key={c.id} className="card">
                   <div className="flex items-start gap-3">
@@ -234,8 +302,14 @@ export default function CasesPage() {
                             {c.case_type && <span>⚖️ {c.case_type}</span>}
                           </div>
                           {c.description && <p className="text-sm text-gray-500 mt-1">{c.description}</p>}
-                          {dates.length > 0 && (
-                            <p className="text-xs text-gray-400 mt-1">{dates.length} tarih kaydı</p>
+                          {(dates.length > 0 || notes.length > 0 || linkedTasks.length > 0) && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {dates.length > 0 && `${dates.length} tarih kaydı`}
+                              {dates.length > 0 && (notes.length > 0 || linkedTasks.length > 0) && ' • '}
+                              {notes.length > 0 && `${notes.length} not`}
+                              {notes.length > 0 && linkedTasks.length > 0 && ' • '}
+                              {linkedTasks.length > 0 && `${linkedTasks.length} bağlı görev`}
+                            </p>
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
@@ -290,6 +364,60 @@ export default function CasesPage() {
                         )}
                       </div>
 
+                      {/* Notes */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-700">Dosya İçi Notlar</h4>
+                          <button onClick={() => openNoteModal(c.id)} className="text-xs btn-secondary py-1.5">
+                            <StickyNote className="w-3.5 h-3.5" /> Not Ekle
+                          </button>
+                        </div>
+                        {notes.length === 0 ? (
+                          <p className="text-xs text-gray-400">Henüz not eklenmedi</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {notes.map(n => (
+                              <div key={n.id} className="flex items-start gap-3 p-2.5 bg-amber-50 rounded-lg">
+                                <div className="flex-1">
+                                  <p className="text-sm text-gray-700">{n.note}</p>
+                                  {n.note_date && <p className="text-xs text-amber-600 mt-0.5">📅 {formatDate(n.note_date)}</p>}
+                                </div>
+                                <div className="flex gap-1">
+                                  <button onClick={() => openNoteModal(c.id, n)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg transition-colors">
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => deleteNote(n.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg transition-colors">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Linked Tasks */}
+                      {linkedTasks.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Bağlı Görevler</h4>
+                          <div className="space-y-2">
+                            {linkedTasks.map(t => (
+                              <div key={t.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                                <button onClick={() => toggleTaskStatus(t)} className="flex-shrink-0">
+                                  {t.status === 'completed'
+                                    ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                    : <Circle className="w-4 h-4 text-gray-300" />}
+                                </button>
+                                <span className={`flex-1 text-sm ${t.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                  {t.title}
+                                </span>
+                                {t.due_date && <span className="text-xs text-gray-400">{formatDate(t.due_date)}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Files */}
                       <div>
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Dosya Ekleri</h4>
@@ -318,7 +446,10 @@ export default function CasesPage() {
             </div>
             <div>
               <label className="label">Dosya Türü</label>
-              <input type="text" value={form.case_type} onChange={e => setForm(f => ({ ...f, case_type: e.target.value }))} placeholder="Ceza, hukuk, idare..." className="input-field" />
+              <select value={form.case_type} onChange={e => setForm(f => ({ ...f, case_type: e.target.value }))} className="input-field">
+                <option value="">Seçiniz...</option>
+                {CASE_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
           </div>
           <div className="form-row">
@@ -368,6 +499,25 @@ export default function CasesPage() {
           <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button onClick={() => setDateModalOpen(false)} className="btn-secondary">İptal</button>
             <button onClick={handleSaveDate} className="btn-primary">Kaydet</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Note Modal */}
+      <Modal isOpen={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Dosya İçi Not" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Not *</label>
+            <textarea value={noteForm.note} onChange={e => setNoteForm(f => ({ ...f, note: e.target.value }))} rows={4} placeholder="Not metni..." className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="label">Tarih (opsiyonel)</label>
+            <input type="date" value={noteForm.note_date} onChange={e => setNoteForm(f => ({ ...f, note_date: e.target.value }))} className="input-field" />
+            <p className="text-xs text-gray-400 mt-1">Tarih girilirse, tarih geldiğinde ana sayfada hatırlatma olarak gösterilir.</p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button onClick={() => setNoteModalOpen(false)} className="btn-secondary">İptal</button>
+            <button onClick={handleSaveNote} className="btn-primary">Kaydet</button>
           </div>
         </div>
       </Modal>

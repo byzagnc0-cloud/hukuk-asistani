@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, CheckSquare, Calendar, FolderOpen, BookOpen,
-  Scale, FileText, Gavel, LogOut, Menu, X, ChevronRight
+  Scale, FileText, Gavel, LogOut, Menu, X, ChevronRight,
+  Landmark, Handshake, Calculator, Archive, Receipt
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -18,6 +19,11 @@ const navigation = [
   { name: 'Emsal Kararlar', href: '/precedents', icon: Scale, description: 'İçtihat arşivi' },
   { name: 'Örnek Dilekçeler', href: '/petitions', icon: FileText, description: 'Dilekçe şablonları' },
   { name: 'Açtığım İcralar', href: '/enforcement', icon: Gavel, description: 'İcra takipleri' },
+  { name: 'Duruşma Listesi', href: '/hearings', icon: Landmark, description: 'Duruşma takibi' },
+  { name: 'Görüşme ve Teklif Takip', href: '/negotiations', icon: Handshake, description: 'Görüşme ve teklif takibi' },
+  { name: 'Hesaplama Araçları', href: '/calculators', icon: Calculator, description: 'Hukuki hesaplamalar' },
+  { name: 'İcra Kütüphanesi', href: '/icra-library', icon: Archive, description: 'Kişisel icra notları' },
+  { name: 'Asgari Ücret Tarifesi', href: '/tariff', icon: Receipt, description: 'Tarife ve harç notları' },
 ]
 
 interface AppLayoutProps {
