@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Search, Trash2, Edit2, Loader2, Landmark, CheckCircle, Circle,
-  Filter, ChevronDown, ChevronUp, FileUp, Sparkles
+  Filter, ChevronDown, ChevronUp, FileUp, Sparkles, Paperclip
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,8 +12,9 @@ import AppLayout from '@/components/layout/AppLayout'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import FileUpload from '@/components/ui/FileUpload'
+import { useFilePreview, FilePreviewModal } from '@/components/ui/FilePreview'
 import ToastContainer, { useToast } from '@/components/ui/Toast'
-import { Hearing, Case } from '@/lib/types'
+import { Hearing, Case, FileAttachment } from '@/lib/types'
 import { formatDate, sanitizeFileName } from '@/lib/utils'
 import { extractDatesFromFile, DetectedDate } from '@/lib/fileParse'
 
@@ -35,10 +36,13 @@ export default function HearingsPage() {
 
   const [hearings, setHearings] = useState<Hearing[]>([])
   const [cases, setCases] = useState<Case[]>([])
+  const [attachmentsByHearing, setAttachmentsByHearing] = useState<Record<string, FileAttachment[]>>({})
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [fetching, setFetching] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const { previewFile, previewUrl, previewLoading, previewError, openPreview, closePreview } = useFilePreview()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -66,6 +70,24 @@ export default function HearingsPage() {
     if (user) fetchAll()
   }, [user])
 
+  useEffect(() => {
+    if (previewError) addToast(previewError, 'error')
+  }, [previewError])
+
+  async function fetchAttachments() {
+    const { data: atts } = await supabase
+      .from('file_attachments')
+      .select('*')
+      .eq('user_id', user!.id)
+      .eq('entity_type', 'hearing')
+      .order('created_at', { ascending: true })
+    const map: Record<string, FileAttachment[]> = {}
+    for (const a of atts ?? []) {
+      (map[a.entity_id] ??= []).push(a)
+    }
+    setAttachmentsByHearing(map)
+  }
+
   async function fetchAll() {
     setFetching(true)
     const [{ data: hs }, { data: cs }] = await Promise.all([
@@ -75,6 +97,18 @@ export default function HearingsPage() {
     setHearings(hs ?? [])
     setCases(cs ?? [])
     setFetching(false)
+    fetchAttachments()
+  }
+
+  function getNoteValue(h: Hearing) {
+    return noteDrafts[h.id] !== undefined ? noteDrafts[h.id] : (h.note ?? '')
+  }
+
+  async function saveNote(h: Hearing) {
+    const value = noteDrafts[h.id]
+    if (value === undefined || value === (h.note ?? '')) return
+    await supabase.from('hearings').update({ note: value || null }).eq('id', h.id)
+    setHearings(prev => prev.map(x => x.id === h.id ? { ...x, note: value || null } : x))
   }
 
   function openAdd() {
@@ -280,6 +314,7 @@ export default function HearingsPage() {
           <div className="space-y-3">
             {filtered.map(h => {
               const isExpanded = expandedId === h.id
+              const attachments = attachmentsByHearing[h.id] ?? []
               return (
                 <div key={h.id} className={`card ${h.status === 'completed' ? 'opacity-70' : ''}`}>
                   <div className="flex items-start gap-3">
@@ -306,9 +341,29 @@ export default function HearingsPage() {
                         {h.attorney && <span>👤 {h.attorney}</span>}
                         {h.case && <span>📁 {h.case.title}</span>}
                       </div>
-                      {h.note && <p className="text-sm text-gray-500 mt-1">{h.note}</p>}
+                      <textarea
+                        value={getNoteValue(h)}
+                        onChange={e => setNoteDrafts(prev => ({ ...prev, [h.id]: e.target.value }))}
+                        onBlur={() => saveNote(h)}
+                        placeholder="Not ekleyin..."
+                        rows={1}
+                        className="mt-2 w-full text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 resize-y focus:ring-1 focus:ring-teal-400 focus:border-teal-400 focus:bg-white transition-colors"
+                      />
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {attachments.length > 0 && (
+                        <button
+                          onClick={() => {
+                            if (attachments.length === 1) openPreview(attachments[0])
+                            else setExpandedId(isExpanded ? null : h.id)
+                          }}
+                          title="Eklenen dosyayı aç"
+                          className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors flex items-center gap-0.5"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                          <span className="text-xs font-medium">{attachments.length}</span>
+                        </button>
+                      )}
                       <button onClick={() => openEdit(h)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -323,7 +378,7 @@ export default function HearingsPage() {
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-gray-100">
                       <h4 className="text-sm font-semibold text-gray-700 mb-3">Dosya Ekleri</h4>
-                      <FileUpload entityType="hearing" entityId={h.id} userId={user!.id} />
+                      <FileUpload entityType="hearing" entityId={h.id} userId={user!.id} onChange={fetchAttachments} />
                     </div>
                   )}
                 </div>
@@ -377,7 +432,7 @@ export default function HearingsPage() {
           {savedEntityId && (
             <div>
               <label className="label">Dosya Ekleri</label>
-              <FileUpload entityType="hearing" entityId={savedEntityId} userId={user!.id} />
+              <FileUpload entityType="hearing" entityId={savedEntityId} userId={user!.id} onChange={fetchAttachments} />
             </div>
           )}
           <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
@@ -466,6 +521,8 @@ export default function HearingsPage() {
           <button onClick={() => deleteId && handleDelete(deleteId)} className="btn-danger">Sil</button>
         </div>
       </Modal>
+
+      <FilePreviewModal file={previewFile} url={previewUrl} loading={previewLoading} onClose={closePreview} />
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </AppLayout>

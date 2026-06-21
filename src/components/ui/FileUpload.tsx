@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Upload, X, Eye, Download, Loader2 } from 'lucide-react'
+import { Upload, X, Eye, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import Modal from '@/components/ui/Modal'
+import { useFilePreview, FilePreviewModal } from '@/components/ui/FilePreview'
 import { FileAttachment, EntityType } from '@/lib/types'
 import { formatFileSize, getFileIcon, sanitizeFileName, ACCEPTED_FILE_TYPES } from '@/lib/utils'
 
@@ -11,24 +11,15 @@ interface FileUploadProps {
   entityType: EntityType
   entityId: string
   userId: string
+  onChange?: (files: FileAttachment[]) => void
 }
 
-function isPdf(file: FileAttachment) {
-  return file.mime_type === 'application/pdf' || file.file_name.toLowerCase().endsWith('.pdf')
-}
-
-function isImage(file: FileAttachment) {
-  return !!file.mime_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(file.file_name)
-}
-
-export default function FileUpload({ entityType, entityId, userId }: FileUploadProps) {
+export default function FileUpload({ entityType, entityId, userId, onChange }: FileUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [files, setFiles] = useState<FileAttachment[]>([])
   const [loadingFiles, setLoadingFiles] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
+  const { previewFile, previewUrl, previewLoading, previewError, openPreview, closePreview } = useFilePreview()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchFiles = useCallback(async () => {
@@ -42,6 +33,7 @@ export default function FileUpload({ entityType, entityId, userId }: FileUploadP
       .order('created_at', { ascending: true })
     setFiles(data ?? [])
     setLoadingFiles(false)
+    return data ?? []
   }, [entityType, entityId, userId])
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
@@ -71,7 +63,8 @@ export default function FileUpload({ entityType, entityId, userId }: FileUploadP
 
       if (dbError) throw dbError
 
-      await fetchFiles()
+      const updated = await fetchFiles()
+      onChange?.(updated)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Dosya yüklenemedi')
     } finally {
@@ -83,32 +76,12 @@ export default function FileUpload({ entityType, entityId, userId }: FileUploadP
     try {
       await supabase.storage.from('documents').remove([filePath])
       await supabase.from('file_attachments').delete().eq('id', fileId)
-      setFiles(prev => prev.filter(f => f.id !== fileId))
+      const updated = files.filter(f => f.id !== fileId)
+      setFiles(updated)
+      onChange?.(updated)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Dosya silinemedi')
     }
-  }
-
-  const openPreview = async (file: FileAttachment) => {
-    setError(null)
-    setPreviewFile(file)
-    setPreviewUrl(null)
-    setPreviewLoading(true)
-    const { data, error: urlError } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(file.file_path, 3600)
-    setPreviewLoading(false)
-    if (urlError || !data?.signedUrl) {
-      setError('Dosya açılamadı')
-      setPreviewFile(null)
-      return
-    }
-    setPreviewUrl(data.signedUrl)
-  }
-
-  const closePreview = () => {
-    setPreviewFile(null)
-    setPreviewUrl(null)
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,8 +94,8 @@ export default function FileUpload({ entityType, entityId, userId }: FileUploadP
 
   return (
     <div className="space-y-3">
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+      {(error || previewError) && (
+        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error || previewError}</p>
       )}
 
       {loadingFiles ? (
@@ -186,31 +159,7 @@ export default function FileUpload({ entityType, entityId, userId }: FileUploadP
         />
       </div>
 
-      {previewFile && (
-        <Modal isOpen onClose={closePreview} title={previewFile.file_name} size="xl">
-          {previewLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-            </div>
-          ) : previewUrl && isPdf(previewFile) ? (
-            <iframe src={previewUrl} title={previewFile.file_name} className="w-full h-[75vh] rounded-lg border border-gray-200" />
-          ) : previewUrl && isImage(previewFile) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt={previewFile.file_name} className="max-w-full max-h-[75vh] mx-auto rounded-lg" />
-          ) : previewUrl ? (
-            <div className="text-center py-10">
-              <p className="text-4xl mb-3">{getFileIcon(previewFile.mime_type, previewFile.file_name)}</p>
-              <p className="text-sm text-gray-500 mb-4">
-                Bu dosya türü tarayıcıda önizlenemiyor
-                {previewFile.file_name.toLowerCase().endsWith('.udf') && ' (UDF dosyaları UYAP veya Word ile açılır)'}.
-              </p>
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" download={previewFile.file_name} className="btn-primary inline-flex">
-                <Download className="w-4 h-4" /> İndir
-              </a>
-            </div>
-          ) : null}
-        </Modal>
-      )}
+      <FilePreviewModal file={previewFile} url={previewUrl} loading={previewLoading} onClose={closePreview} />
     </div>
   )
 }
