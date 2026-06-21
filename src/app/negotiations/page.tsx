@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import AppLayout from '@/components/layout/AppLayout'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
+import FileUpload from '@/components/ui/FileUpload'
 import ToastContainer, { useToast } from '@/components/ui/Toast'
 import { Negotiation, NegotiationStatus, NEGOTIATION_STATUS_LABELS } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
@@ -49,6 +50,7 @@ export default function NegotiationsPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [savedEntityId, setSavedEntityId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !user) router.push('/auth')
@@ -72,6 +74,7 @@ export default function NegotiationsPage() {
   function openAdd() {
     setEditingId(null)
     setForm(emptyForm)
+    setSavedEntityId(null)
     setModalOpen(true)
   }
 
@@ -87,6 +90,7 @@ export default function NegotiationsPage() {
       follow_up_date: item.follow_up_date ?? '',
       status: item.status,
     })
+    setSavedEntityId(item.id)
     setModalOpen(true)
   }
 
@@ -113,12 +117,13 @@ export default function NegotiationsPage() {
       if (error) { addToast('Güncellenemedi', 'error'); setSaving(false); return }
       addToast('Güncellendi', 'success')
     } else {
-      const { error } = await supabase.from('negotiations').insert(payload)
+      const { data, error } = await supabase.from('negotiations').insert(payload).select().single()
       if (error) { addToast('Eklenemedi', 'error'); setSaving(false); return }
+      setSavedEntityId(data.id)
+      setEditingId(data.id)
       addToast('Eklendi', 'success')
     }
     setSaving(false)
-    setModalOpen(false)
     fetchItems()
   }
 
@@ -269,11 +274,22 @@ export default function NegotiationsPage() {
               ))}
             </select>
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-            <button onClick={() => setModalOpen(false)} className="btn-secondary">İptal</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
-            </button>
+          {savedEntityId && (
+            <div>
+              <label className="label">Dosya Ekleri (PDF, Word, Excel, UDF)</label>
+              <FileUpload entityType="negotiation" entityId={savedEntityId} userId={user!.id} />
+            </div>
+          )}
+          <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
+            {!savedEntityId && editingId === null && (
+              <p className="text-xs text-gray-400 self-center">Dosya eklemek için önce kaydedin</p>
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button onClick={() => setModalOpen(false)} className="btn-secondary">İptal</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>

@@ -291,11 +291,16 @@ export default function PetitionsPage() {
               <FileUpload entityType="petition" entityId={savedEntityId} userId={user!.id} />
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-            <button onClick={() => setModalOpen(false)} className="btn-secondary">İptal</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
-            </button>
+          <div className="flex justify-between gap-3 pt-2 border-t border-gray-100">
+            {!savedEntityId && editingId === null && (
+              <p className="text-xs text-gray-400 self-center">Dosya eklemek için önce kaydedin</p>
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button onClick={() => setModalOpen(false)} className="btn-secondary">İptal</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Kaydediliyor...</> : 'Kaydet'}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
