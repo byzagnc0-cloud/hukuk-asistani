@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Trash2, Edit2, Loader2, Handshake, Filter } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Loader2, Users, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import AppLayout from '@/components/layout/AppLayout'
@@ -179,7 +179,7 @@ export default function NegotiationsPage() {
 
         {filtered.length === 0 ? (
           <div className="card text-center py-16">
-            <Handshake className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h3 className="font-semibold text-gray-500">Görüşme kaydı bulunamadı</h3>
           </div>
         ) : (
@@ -188,7 +188,7 @@ export default function NegotiationsPage() {
               <div key={item.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-3">
                   <div className="p-2.5 bg-pink-100 text-pink-600 rounded-xl flex-shrink-0">
-                    <Handshake className="w-4 h-4" />
+                    <Users className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">

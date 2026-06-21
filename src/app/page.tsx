@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   Bell, CheckSquare, Calendar, FolderOpen, Gavel,
   Loader2, RefreshCw, Clock, ChevronRight, AlertTriangle,
-  Landmark, Handshake, StickyNote, Calculator, Archive, CheckCircle
+  Landmark, Users, StickyNote, Calculator, Archive, CheckCircle
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -20,7 +20,7 @@ const sourceConfig: Record<Reminder['source'], { label: string; icon: any; color
   case_date: { label: 'Dava / Duruşma', icon: FolderOpen, color: 'bg-orange-100 text-orange-700', href: '/cases', borderColor: 'border-l-orange-500' },
   enforcement: { label: 'İcra Kesinleşmesi', icon: Gavel, color: 'bg-red-100 text-red-700', href: '/enforcement', borderColor: 'border-l-red-500' },
   hearing: { label: 'Duruşma', icon: Landmark, color: 'bg-teal-100 text-teal-700', href: '/hearings', borderColor: 'border-l-teal-500' },
-  negotiation: { label: 'Görüşme / Teklif', icon: Handshake, color: 'bg-pink-100 text-pink-700', href: '/negotiations', borderColor: 'border-l-pink-500' },
+  negotiation: { label: 'Görüşme / Teklif', icon: Users, color: 'bg-pink-100 text-pink-700', href: '/negotiations', borderColor: 'border-l-pink-500' },
   case_note: { label: 'Dosya Notu', icon: StickyNote, color: 'bg-amber-100 text-amber-700', href: '/cases', borderColor: 'border-l-amber-500' },
 }
 
@@ -382,7 +382,7 @@ export default function HomePage() {
             { label: 'Davalar', href: '/cases', icon: FolderOpen, color: 'text-orange-600 bg-orange-50' },
             { label: 'İcralar', href: '/enforcement', icon: Gavel, color: 'text-red-600 bg-red-50' },
             { label: 'Duruşmalar', href: '/hearings', icon: Landmark, color: 'text-teal-600 bg-teal-50' },
-            { label: 'Görüşmeler', href: '/negotiations', icon: Handshake, color: 'text-pink-600 bg-pink-50' },
+            { label: 'Görüşmeler', href: '/negotiations', icon: Users, color: 'text-pink-600 bg-pink-50' },
             { label: 'Hesaplama', href: '/calculators', icon: Calculator, color: 'text-indigo-600 bg-indigo-50' },
             { label: 'İcra Kütüphanesi', href: '/icra-library', icon: Archive, color: 'text-amber-600 bg-amber-50' },
           ].map(item => (
