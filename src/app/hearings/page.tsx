@@ -14,7 +14,7 @@ import Badge from '@/components/ui/Badge'
 import FileUpload from '@/components/ui/FileUpload'
 import ToastContainer, { useToast } from '@/components/ui/Toast'
 import { Hearing, Case } from '@/lib/types'
-import { formatDate } from '@/lib/utils'
+import { formatDate, sanitizeFileName } from '@/lib/utils'
 import { extractDatesFromFile, DetectedDate } from '@/lib/fileParse'
 
 const emptyForm = {
@@ -173,7 +173,7 @@ export default function HearingsPage() {
     if (!importFile || selectedDates.size === 0) return addToast('En az bir tarih seçin', 'error')
     setImporting(true)
 
-    const filePath = `${user!.id}/hearing/bulk/${Date.now()}_${importFile.name}`
+    const filePath = `${user!.id}/hearing/bulk/${Date.now()}_${sanitizeFileName(importFile.name)}`
     const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, importFile)
     if (uploadError) { addToast('Dosya yüklenemedi', 'error'); setImporting(false); return }
 

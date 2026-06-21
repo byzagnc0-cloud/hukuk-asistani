@@ -88,6 +88,19 @@ export function classNames(...classes: (string | undefined | null | false)[]): s
   return classes.filter(Boolean).join(' ')
 }
 
+const TURKISH_CHAR_MAP: Record<string, string> = {
+  ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I',
+  ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U',
+}
+
+export function sanitizeFileName(fileName: string): string {
+  const replaced = fileName.replace(/[çÇğĞıİöÖşŞüÜ]/g, (ch) => TURKISH_CHAR_MAP[ch] ?? ch)
+  return replaced
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
 export const ACCEPTED_FILE_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.udf,.txt,.jpg,.jpeg,.png'
 
 export const PRIORITY_COLORS = {

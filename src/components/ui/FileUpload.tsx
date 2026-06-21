@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { Upload, X, File } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { FileAttachment, EntityType } from '@/lib/types'
-import { formatFileSize, getFileIcon, ACCEPTED_FILE_TYPES } from '@/lib/utils'
+import { formatFileSize, getFileIcon, sanitizeFileName, ACCEPTED_FILE_TYPES } from '@/lib/utils'
 
 interface FileUploadProps {
   entityType: EntityType
@@ -24,8 +24,8 @@ export default function FileUpload({ entityType, entityId, userId, existingFiles
     setUploading(true)
     setError(null)
     try {
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${userId}/${entityType}/${entityId}/${Date.now()}_${file.name}`
+      const safeName = sanitizeFileName(file.name)
+      const filePath = `${userId}/${entityType}/${entityId}/${Date.now()}_${safeName}`
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
